@@ -11,54 +11,158 @@ from django.utils.timezone import now
 from rest_framework import status
 from accounts.models import User
 from django.conf import settings
+import uuid
 
 
 class SignInView(APIView, Authentication):
-  
+
     permission_classes = [AllowAny]
     authentication_classes = [Authentication]
 
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        
+        email = request.data.get("email")
+        password = request.data.get("password")
+
         signin = self.signin(email, password)
-        
+
         if not signin:
-            raise AuthenticationFailed('Credenciais inválidas.', code=status.HTTP_401_UNAUTHORIZED)
-          
+            raise AuthenticationFailed(
+                "Credenciais inválidas.", code=status.HTTP_401_UNAUTHORIZED
+            )
+
         user = UserSerializer(signin).data
         refresh = RefreshToken.for_user(signin)
-        
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': user,
-        }, status=status.HTTP_200_OK)
-        
+
+        return Response(
+            {
+                "result": {
+                    "user": user,
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class SignUpView(APIView, Authentication):
-  
+
     permission_classes = [AllowAny]
     authentication_classes = [Authentication]
 
     def post(self, request):
 
-        name = request.data.get('name')
-        email = request.data.get('email')
-        password = request.data.get('password')
-        
+        name = request.data.get("name")
+        email = request.data.get("email")
+        password = request.data.get("password")
+
         if not name or not email or not password:
-            raise ValidationError('Todos os campos são obrigatórios.', code=status.HTTP_400_BAD_REQUEST)
-        
+            raise ValidationError(
+                "Todos os campos são obrigatórios.", code=status.HTTP_400_BAD_REQUEST
+            )
+
         singup = self.signup(name, email, password)
-        
+
         if not singup:
-            raise AuthenticationFailed('Erro ao registrar.', code= status.HTTP_400_BAD_REQUEST)
-          
+            raise AuthenticationFailed(
+                "Erro ao registrar.", code=status.HTTP_400_BAD_REQUEST
+            )
+
         user = UserSerializer(singup).data
         refresh = RefreshToken.for_user(singup)
-        
-        return Response({
-            'user': user,
-            'access': str(refresh.access_token),
-        }, status=status.HTTP_200_OK)
+
+        return Response(
+            {
+                {
+                    "result": {
+                        "user": user,
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh),
+                    }
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class UserView(APIView):
+
+    def get(self, request):
+        user = request.user
+
+        User.objects.filter(id=user.id).update(last_access=now())
+
+        if not user:
+            raise AuthenticationFailed(
+                "Usuário não autenticado.", code=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user_data = UserSerializer(user).data
+
+        return Response({"result": user_data}, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        user = request.user
+
+        if not user:
+            raise AuthenticationFailed(
+                "Usuário não autenticado.", code=status.HTTP_401_UNAUTHORIZED
+            )
+
+        name = request.data.get("name")
+        email = request.data.get("email")
+        password = request.data.get("password")
+        avatar = request.FILES.get("avatar")
+
+        if not name or not email or not password:
+            raise ValidationError(
+                "Todos os campos são obrigatórios.", code=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.name = name
+        user.email = email
+        user.set_password(password)
+
+        storage = FileSystemStorage(
+            settings.MEDIA_ROOT / "avatars", settings.MEDIA_URL / "avatars"
+        )
+
+        if avatar:
+            content_type = avatar.content_type
+            extension = avatar.name.split(".")[-1]
+            if content_type not in ["image/jpeg", "image/png"]:
+                raise ValidationError(
+                    "Formato de imagem inválido. Use JPEG ou PNG.",
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
+            if extension not in ["jpg", "jpeg", "png"]:
+                raise ValidationError(
+                    "Extensão de imagem inválida. Use .jpg, .jpeg ou .png.",
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
+            filename = f"{uuid.uuid4()}.{extension}"
+            file_path = storage.save(filename, avatar)
+            url = storage.url(file_path)
+            user.avatar = url
+
+        user.save()
+
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+
+        if not serializer.is_valid():
+
+            if avatar:
+                storage.delete(file_path)
+
+            raise ValidationError(serializer.errors, code=status.HTTP_400_BAD_REQUEST)
+
+        if avatar and request.user.avatar != "/media/avatars/default.png":
+            storage.delete(request.user.avatar.split("/")[-1])
+
+        if password:
+            request.user.set_password(password)
+            request.user.save(update_fields=["password"])
+
+        serializer.save()
+
+        return Response({"result": serializer.data}, status=status.HTTP_200_OK)
