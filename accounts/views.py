@@ -6,7 +6,7 @@ from accounts.serializers import UserSerializer
 from rest_framework.response import Response
 from core.exceptions import ValidationError
 from rest_framework.views import APIView
-from accounts.auth import Authentication
+from accounts.auth import AuthenticationService
 from django.utils.timezone import now
 from rest_framework import status
 from accounts.models import User
@@ -14,16 +14,16 @@ from django.conf import settings
 import uuid
 
 
-class SignInView(APIView, Authentication):
+class SignInView(APIView):
 
     permission_classes = [AllowAny]
-    authentication_classes = [Authentication]
 
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        signin = self.signin(email, password)
+        auth_service = AuthenticationService()
+        signin = auth_service.signin(email, password)
 
         if not signin:
             raise AuthenticationFailed(
@@ -45,10 +45,9 @@ class SignInView(APIView, Authentication):
         )
 
 
-class SignUpView(APIView, Authentication):
+class SignUpView(APIView):
 
     permission_classes = [AllowAny]
-    authentication_classes = [Authentication]
 
     def post(self, request):
 
@@ -61,7 +60,8 @@ class SignUpView(APIView, Authentication):
                 "Todos os campos são obrigatórios.", code=status.HTTP_400_BAD_REQUEST
             )
 
-        singup = self.signup(name, email, password)
+        auth_service = AuthenticationService()
+        singup = auth_service.signup(name, email, password)
 
         if not singup:
             raise AuthenticationFailed(
@@ -73,13 +73,11 @@ class SignUpView(APIView, Authentication):
 
         return Response(
             {
-                {
-                    "result": {
-                        "user": user,
-                        "access": str(refresh.access_token),
-                        "refresh": str(refresh),
-                    }
-                },
+                "result": {
+                    "user": user,
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                }
             },
             status=status.HTTP_200_OK,
         )

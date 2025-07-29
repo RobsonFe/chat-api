@@ -24,12 +24,5 @@ teste.py
 celerybeat-schedule*
 backup_azure.ps1
 restore_azure.ps1
-media/
-media/*
-*.media
 *.sqlite3
-*.log
-*.pot
-*.pyc
 
-*.db
