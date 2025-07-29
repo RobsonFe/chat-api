@@ -130,22 +130,21 @@ class UserView(APIView):
                 "Usuário não autenticado.", code=status.HTTP_401_UNAUTHORIZED
             )
 
-        name = request.data.get("name")
-        email = request.data.get("email")
+        name = request.data.get("name", user.name)
+        email = request.data.get("email", user.email)
         password = request.data.get("password")
         avatar = request.FILES.get("avatar")
 
-        if not name or not email or not password:
-            raise ValidationError(
-                "Todos os campos são obrigatórios.", code=status.HTTP_400_BAD_REQUEST
-            )
-
         user.name = name
         user.email = email
-        user.set_password(password)
+        
+        if password:
+            user.set_password(password)
 
+        import os
         storage = FileSystemStorage(
-            settings.MEDIA_ROOT / "avatars", settings.MEDIA_URL / "avatars"
+            location=os.path.join(settings.MEDIA_ROOT, 'avatars'),
+            base_url=f"{settings.MEDIA_URL}avatars/"
         )
 
         if avatar:
@@ -161,29 +160,19 @@ class UserView(APIView):
                     "Extensão de imagem inválida. Use .jpg, .jpeg ou .png.",
                     code=status.HTTP_400_BAD_REQUEST,
                 )
+            
+            # Remove avatar anterior se existir e não for o padrão
+            if user.avatar and user.avatar != "/media/avatars/default.png":
+                old_file_path = user.avatar.replace(settings.MEDIA_URL, "")
+                if storage.exists(old_file_path):
+                    storage.delete(old_file_path)
+            
             filename = f"{uuid.uuid4()}.{extension}"
             file_path = storage.save(filename, avatar)
-            url = storage.url(file_path)
-            user.avatar = url
+            user.avatar = storage.url(file_path)
 
         user.save()
 
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        user_data = UserSerializer(user).data
 
-        if not serializer.is_valid():
-
-            if avatar:
-                storage.delete(file_path)
-
-            raise ValidationError(serializer.errors, code=status.HTTP_400_BAD_REQUEST)
-
-        if avatar and request.user.avatar != "/media/avatars/default.png":
-            storage.delete(request.user.avatar.split("/")[-1])
-
-        if password:
-            request.user.set_password(password)
-            request.user.save(update_fields=["password"])
-
-        serializer.save()
-
-        return Response({"result": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"result": user_data}, status=status.HTTP_200_OK)
