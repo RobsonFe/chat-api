@@ -87,6 +87,7 @@ class SignOutView(APIView):
     def post(self, request):
         
         refresh_token = request.data.get("refresh")
+        user = request.user
         
 
         if not refresh_token:
@@ -95,6 +96,8 @@ class SignOutView(APIView):
             )
         try:
             token = RefreshToken(refresh_token)
+            user.last_access = now()
+            user.save()
             token.blacklist()
         except TokenError:
             raise AuthenticationFailed(
