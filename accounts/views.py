@@ -1,7 +1,8 @@
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.core.files.storage import FileSystemStorage
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from accounts.serializers import UserSerializer
 from rest_framework.response import Response
 from core.exceptions import ValidationError
@@ -35,11 +36,8 @@ class SignInView(APIView):
 
         return Response(
             {
-                "result": {
-                    "user": user,
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                }
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
             },
             status=status.HTTP_200_OK,
         )
@@ -76,10 +74,35 @@ class SignUpView(APIView):
                 "result": {
                     "user": user,
                     "access": str(refresh.access_token),
-                    "refresh": str(refresh),
                 }
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class SignOutView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        
+        refresh_token = request.data.get("refresh")
+        
+
+        if not refresh_token:
+            raise AuthenticationFailed(
+                "Token de atualização não fornecido.", code=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            raise AuthenticationFailed(
+                "Erro ao invalidar o token.", code=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            status=status.HTTP_205_RESET_CONTENT
         )
 
 
