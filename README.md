@@ -44,5 +44,3 @@ Para instalar todas as ferramentas necessárias, basta utilizar o `requirements.
 ```python
 pip install -r requirements.txt
 ```
-
-## Deixei um `.env.local` para você configurar suas variáveis de ambiente.
