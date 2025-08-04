@@ -159,7 +159,7 @@ class ChatMessageView(BaseView):
     
     socket.emit(
       'update_chat',
-      {
+      data={
         "query": {
           "users": [chat.from_user, chat.to_user.id],
         }
