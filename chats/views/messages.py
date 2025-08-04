@@ -24,7 +24,7 @@ from django.conf import settings
 import uuid
 
 
-class ChatMessageView(BaseView):
+class ChatMessagesView(BaseView):
   """
   View para gerenciar mensagens de chat.
   Herda de BaseView para reutilizar métodos comuns.
@@ -170,4 +170,63 @@ class ChatMessageView(BaseView):
         "result": serializer,
       },
       status=status.HTTP_201_CREATED
+    )
+
+class ChatMessageView(BaseView):
+  """
+  View para gerenciar uma mensagem de chat específica.
+  Permite atualizar ou deletar uma mensagem de chat.
+  Herda de BaseView para reutilizar métodos comuns.
+  """
+  def delete(self, request, chat_id, message_id):
+    """
+    Deleta uma mensagem de chat específica.
+    Marca a mensagem como deletada, mas não a remove do banco de dados.
+    Retorna a mensagem deletada.
+    """
+    chat = self.chat_belongs_to_user(
+      chat_id=chat_id,
+      user_id=request.user.id
+    )
+    
+    deleted_message = ChatMessage.objects.filter(
+      id=message_id,
+      chat=chat_id,
+      from_user=request.user.id,
+      deleted_at__isnull=True
+    ).update(
+      deleted_at=now()
+    )
+    
+    if not deleted_message:
+      raise ValidationError("Mensagem não encontrada ou já deletada.")
+    
+    if deleted_message:
+      socket.emit(
+      'update_chat_message',
+      {
+        'type': 'delete',
+        "query": {
+          "chat_id": chat_id,
+          "message_id": message_id,
+        }
+      }
+    )
+    
+    
+    socket.emit(
+      'update_chat',
+      {
+        "query": {
+          "users": [chat.from_user, chat.to_user.id],
+        }
+      }
+    )
+    
+    return Response(
+      {
+        "message": "Mensagem deletada com sucesso.",
+        "sucess": True
+      },
+      status=status.HTTP_204_OK
     )
