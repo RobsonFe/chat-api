@@ -8,6 +8,7 @@ from accounts.models import User
 from chats.models import Chat, ChatMessage
 from chats.serializers import ChatSerializer
 from chats.exceptions import ChatNotFound,UserNotFound
+from core.exceptions import ValidationError
 
 
 class BaseView(APIView):
@@ -77,3 +78,20 @@ class BaseView(APIView):
     ).update(
       viewed_at=now()
     )
+    
+  
+  def validate_file(self, size,extension,content_type) -> None:
+    """
+    Valida se o arquivo enviado é do tipo permitido.
+    Lança uma exceção ValidationError se o arquivo não for válido.
+    """
+    
+    if size > 10 * 1024 * 1024:  # 10 MB
+        raise ValidationError("O arquivo não pode ser maior que 10 MB.")
+      
+    if extension not in ["jpg", "jpeg", "png", "gif", "pdf", "docx", "txt"]:
+      raise ValidationError("Extensão de arquivo inválida.")
+    
+    if content_type not in ["image/jpeg", "image/png", "image/gif", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]:
+      raise ValidationError("Tipo de arquivo inválido.")
+    
