@@ -64,7 +64,11 @@ class BaseView(APIView):
   
   
   def mark_messages_as_read(self, chat_id, user_id) -> None:
-    
+    """"
+    Marca as mensagens de um chat como lidas.
+    Marca todas as mensagens não visualizadas de um chat específico como lidas,
+    exceto aquelas enviadas pelo próprio usuário.
+    """
     ChatMessage.objects.filter(
       chat_id=chat_id,
       viewed_at__isnull=True,
