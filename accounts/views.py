@@ -13,6 +13,7 @@ from rest_framework import status
 from accounts.models import User
 from django.conf import settings
 import uuid
+import os
 
 
 class SignInView(APIView):
@@ -145,7 +146,6 @@ class UserView(APIView):
         if password:
             user.set_password(password)
 
-        import os
         storage = FileSystemStorage(
             location=os.path.join(settings.MEDIA_ROOT, 'avatars'),
             base_url=f"{settings.MEDIA_URL}avatars/"
