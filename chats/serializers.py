@@ -53,7 +53,7 @@ class ChatSerializer(serializers.ModelSerializer):
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     from_user = serializers.SerializerMethodField()
-    attachments = serializers.SerializerMethodField()
+    attachment = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatMessage
@@ -69,7 +69,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_from_user(self, message):
        return UserSerializer(message.from_user).data
 
-    def get_attachments(self, message):
+    def get_attachment(self, message):
       
         if message.attachment_code == "FILE":
           file_attachment = FileAttachment.objects.filter(

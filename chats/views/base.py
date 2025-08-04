@@ -72,7 +72,7 @@ class BaseView(APIView):
     ChatMessage.objects.filter(
       chat_id=chat_id,
       viewed_at__isnull=True,
-      deleted_at_isnull=True,
+      deleted_at__isnull=True,
     ).exclude(
       from_user=user_id
     ).update(
