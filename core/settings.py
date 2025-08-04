@@ -36,6 +36,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+# Configuração para APIs - desabilita o APPEND_SLASH
+APPEND_SLASH = False
+
 
 # Application definition
 

@@ -26,12 +26,12 @@ class ChatsView(BaseView):
     A criação de um novo chat também emite um evento via socket para atualizar a interface do usuário.
     """
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
 
         chats = (
             Chat.objects.filter(
                 Q(from_user_id=request.user.id) | Q(to_user_id=request.user.id),
-                deleted_at_isnull=True,
+                deleted_at__isnull=True,
             )
             .order_by("-viewed_at")
             .all()
@@ -48,7 +48,7 @@ class ChatsView(BaseView):
             status=status.HTTP_200_OK,
         )
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
 
         email = request.data.get("email")
 
@@ -100,7 +100,7 @@ class ChatView(BaseView):
             chat_id=chat_id
         )
         
-        deleted = Chat.objects.filter(id=chat.id, deleted_at_isnull=True).update(
+        deleted = Chat.objects.filter(id=chat.id, deleted_at__isnull=True).update(
             deleted_at=now()
         )
         
