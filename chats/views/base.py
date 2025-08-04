@@ -89,7 +89,7 @@ class BaseView(APIView):
     if size > 10 * 1024 * 1024:  # 10 MB
         raise ValidationError("O arquivo não pode ser maior que 10 MB.")
       
-    if extension not in ["jpg", "jpeg", "png", "gif", "pdf", "docx", "txt"]:
+    if extension.lower() not in ["jpg", "jpeg", "png", "gif", "pdf", "docx", "txt"]:
       raise ValidationError("Extensão de arquivo inválida.")
     
     if content_type not in ["image/jpeg", "image/png", "image/gif", "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]:
