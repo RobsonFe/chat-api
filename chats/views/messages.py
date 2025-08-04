@@ -1,3 +1,4 @@
+from email import message
 from core.socket import socket 
 from core.exceptions import ValidationError
 
@@ -20,8 +21,16 @@ from django.utils.timezone import now
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
+import uuid
+
 
 class ChatMessageView(BaseView):
+  """
+  View para gerenciar mensagens de chat.
+  Herda de BaseView para reutilizar métodos comuns.
+  Esta view permite listar mensagens de um chat específico e criar novas mensagens.
+  
+  """
   
   def get(self, request, chat_id):
   
@@ -59,4 +68,106 @@ class ChatMessageView(BaseView):
         "results": serializer.data,
       },
       status=status.HTTP_200_OK
+    )
+    
+  def post(self, request, chat_id):
+    """
+    Cria uma nova mensagem de chat.
+    A mensagem pode ser de texto, áudio ou arquivo.
+    Se for um arquivo, ele deve ser enviado como multipart/form-data.
+    O corpo da mensagem é obrigatório, mas o arquivo ou áudio são opcionais.
+    Retorna a mensagem criada.
+    """
+    
+    body = request.data.get("body")
+    file = request.FILES.get("file")
+    audio = request.FILES.get("audio")
+    
+    chat = self.chat_belongs_to_user(
+      chat_id=chat_id,
+      user_id=request.user.id
+    )
+    
+    self.mark_messages_as_read(chat_id, request.user.id)
+    
+    if not body and not file and not audio:
+      raise ValidationError("O corpo da mensagem não pode estar vazio.")
+    
+    attachment = None
+    
+    if file:
+      storage = FileSystemStorage(
+        settings.MEDIA_ROOT / 'files',
+        settings.MEDIA_URL + 'files'
+      )
+      content_type = file.content_type
+      name = file.name.split('.')[0]
+      extension = file.name.split('.')[-1]
+      size = file.size
+      
+      self.validate_file(size, extension, content_type)
+      
+      file = storage.save(f"{name}-{uuid.uuid4()}.{extension}", file)
+      src = storage.url(file)
+      
+      attachment = FileAttachment.objects.create(
+        file=file,
+        name=name,
+        extension=extension,
+        content_type=content_type,
+        size=size,
+        src=src
+      )
+      
+    elif audio:
+      storage = FileSystemStorage(
+        settings.MEDIA_ROOT / 'audios',
+        settings.MEDIA_URL + 'audios'
+      )
+      
+      audio = storage.save(f"{name}-{uuid.uuid4()}.mp3", audio)
+      src = storage.url(audio)
+      
+      attachment = AudioAttachment.objects.create(
+        src=src
+      )
+      
+    chat_message = ChatMessage.objects.create(
+      chat_id=chat_id,
+      from_user_id=request.user.id,
+      body=body,
+      attachment_code= 'FILE' if file else 'AUDIO' if audio else None,
+      attachment_id=attachment.id if attachment else None
+    )
+    
+    serializer = ChatMessageSerializer(chat_message, context={'user_id': request.user.id}).data
+    
+    socket.emit(
+      'update_chat_message',
+      {
+        'type': 'create',
+        'message': serializer,
+        "query": {
+          "chat_id": chat_id, 
+        }
+      }
+    )
+    
+    Chat.objects.filter(id=chat_id).update(
+      viewed_at=now()
+    )
+    
+    socket.emit(
+      'update_chat',
+      {
+        "query": {
+          "users": [chat.from_user, chat.to_user.id],
+        }
+      }
+    )
+    return Response(
+      {
+        "result": serializer,
+      },
+      status=status.HTTP_201_CREATED
     )
