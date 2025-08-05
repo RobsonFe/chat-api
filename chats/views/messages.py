@@ -209,5 +209,5 @@ class ChatMessageView(BaseView):
 
         return Response(
             {"message": "Mensagem deletada com sucesso.", "sucess": True},
-            status=status.HTTP_204_NO_CONTENT,
+            status=status.HTTP_200_OK,
         )

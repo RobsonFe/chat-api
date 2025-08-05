@@ -120,5 +120,5 @@ class ChatView(BaseView):
                 "message": "Chat deletado com sucesso.",
                 "deleted": True,
             },
-            status=status.HTTP_204_NO_CONTENT,
+            status=status.HTTP_200_OK,
         )
