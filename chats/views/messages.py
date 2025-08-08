@@ -1,4 +1,3 @@
-from email import message
 from core.socket import socket
 from core.exceptions import ValidationError
 
